@@ -2,6 +2,9 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
+	"log"
+	"net/http"
 
 	"github.com/TechBowl-japan/go-stations/model"
 	"github.com/TechBowl-japan/go-stations/service"
@@ -20,11 +23,16 @@ func NewTODOHandler(svc *service.TODOService) *TODOHandler {
 }
 
 // Create handles the endpoint that creates the TODO.
-func (h *TODOHandler) Create(ctx context.Context, req *model.CreateTODORequest) (*model.CreateTODOResponse, error) {
-	_, _ = h.svc.CreateTODO(ctx, "", "")
-	return &model.CreateTODOResponse{}, nil
-}
 
+func (h *TODOHandler) Create(ctx context.Context, req *model.CreateTODORequest) (*model.CreateTODOResponse, error) {
+
+	res, err:= h.svc.CreateTODO(ctx, req.Subject, req.Description)
+	if err != nil {
+		log.Println("Error creating TODO: ", err)
+		return nil, err
+	}
+	return &model.CreateTODOResponse{TODO: res},nil
+}
 // Read handles the endpoint that reads the TODOs.
 func (h *TODOHandler) Read(ctx context.Context, req *model.ReadTODORequest) (*model.ReadTODOResponse, error) {
 	_, _ = h.svc.ReadTODO(ctx, 0, 0)
@@ -41,4 +49,37 @@ func (h *TODOHandler) Update(ctx context.Context, req *model.UpdateTODORequest) 
 func (h *TODOHandler) Delete(ctx context.Context, req *model.DeleteTODORequest) (*model.DeleteTODOResponse, error) {
 	_ = h.svc.DeleteTODO(ctx, nil)
 	return &model.DeleteTODOResponse{}, nil
+}
+
+// ServeHTTP implements http.Handler interface.
+func (h *TODOHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost{
+		log.Println("Invalid method")
+		http.Error(w, "error", http.StatusBadRequest)
+		return
+	}
+	req := &model.CreateTODORequest{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		log.Println("Error decoding request: ", err)
+		http.Error(w, "error", http.StatusBadRequest)
+		return
+	}
+
+	if req.Subject == "" {
+		log.Println("Invalid subject")
+		http.Error(w, "error", http.StatusBadRequest)
+		return
+	}
+	res, err := h.Create(r.Context(), req)
+	if err != nil {
+		log.Println("Error creating TODO: ", err)
+		http.Error(w, "error", http.StatusBadRequest)
+		return
+	}
+	
+	jsonRes, err := json.Marshal(res)
+	w.Write(jsonRes)
+	if err != nil {
+		log.Println("Error encoding TODO for logging: ", err)
+	}
 }

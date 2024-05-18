@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"log"
 
 	"github.com/TechBowl-japan/go-stations/model"
 )
@@ -20,15 +21,36 @@ func NewTODOService(db *sql.DB) *TODOService {
 }
 
 // CreateTODO creates a TODO on DB.
+// CreateTODO creates a TODO on DB.
 func (s *TODOService) CreateTODO(ctx context.Context, subject, description string) (*model.TODO, error) {
-	const (
-		insert  = `INSERT INTO todos(subject, description) VALUES(?, ?)`
-		confirm = `SELECT subject, description, created_at, updated_at FROM todos WHERE id = ?`
-	)
-
-	return nil, nil
+    const (
+        insert  = `INSERT INTO todos(subject, description) VALUES(?, ?)`
+        confirm = `SELECT subject, description, created_at, updated_at FROM todos WHERE id = ?`
+    )
+	stmt, err := s.db.Prepare(insert)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	result, err := stmt.Exec(subject, description)
+	if err != nil {
+		log.Println("Error inserting TODO: ", err)
+		return nil, err
+	}
+    id, err := result.LastInsertId()
+    if err != nil {
+        log.Println("Error getting last insert id: ", err)
+        return nil, err
+    }
+    todo := &model.TODO{}
+    res := s.db.QueryRowContext(ctx, confirm, id);
+	todo.ID = int(id)
+    if err := res.Scan(&todo.Subject, &todo.Description, &todo.CreatedAt, &todo.UpdatedAt ); err != nil {
+        log.Println("Error scanning query result: ", err)
+        return nil, err
+    }
+    return todo, nil
 }
-
 // ReadTODO reads TODOs on DB.
 func (s *TODOService) ReadTODO(ctx context.Context, prevID, size int64) ([]*model.TODO, error) {
 	const (

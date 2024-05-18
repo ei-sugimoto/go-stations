@@ -16,7 +16,6 @@ import (
 	"github.com/TechBowl-japan/go-stations/db"
 	"github.com/TechBowl-japan/go-stations/handler/router"
 )
-
 func TestStation9(t *testing.T) {
 	dbPath := "./temp_test.db"
 	if err := os.Setenv("DB_PATH", dbPath); err != nil {
@@ -137,10 +136,8 @@ func TestStation9(t *testing.T) {
 					}
 					return true
 				}
-
 				return false
 			}))
-
 			if diff != "" {
 				t.Error("期待していない値です\n", diff)
 			}
