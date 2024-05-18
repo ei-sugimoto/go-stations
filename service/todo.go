@@ -57,8 +57,47 @@ func (s *TODOService) ReadTODO(ctx context.Context, prevID, size int64) ([]*mode
 		read       = `SELECT id, subject, description, created_at, updated_at FROM todos ORDER BY id DESC LIMIT ?`
 		readWithID = `SELECT id, subject, description, created_at, updated_at FROM todos WHERE id < ? ORDER BY id DESC LIMIT ?`
 	)
-
-	return nil, nil
+	var stmt *sql.Stmt
+	var err error
+	if prevID == 0{
+		stmt, err = s.db.PrepareContext(ctx, read)
+	} else {
+		stmt, err = s.db.PrepareContext(ctx, readWithID)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	var rows *sql.Rows
+	if prevID == 0 {
+		 rows, err = stmt.QueryContext(ctx, size)
+		if err != nil {
+			log.Println("Error reading TODOs: ", err)
+			return nil, err
+		}
+		defer rows.Close()
+	} else {
+		rows, err = stmt.QueryContext(ctx, prevID, size)
+		if err != nil {
+			log.Println("Error reading TODOs: ", err)
+			return nil, err
+		}
+		defer rows.Close()
+	}
+	todos := []*model.TODO{}
+	for rows.Next() {
+		todo := &model.TODO{}
+		if err := rows.Scan(&todo.ID, &todo.Subject, &todo.Description, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
+			log.Println("Error scanning query result: ", err)
+			return nil, err
+		}
+		todos = append(todos, todo)
+	}
+	if err := rows.Err(); err != nil {
+		log.Println("Error iterating over rows: ", err)
+		return nil, err
+	}
+	return todos, nil
 }
 
 // UpdateTODO updates the TODO on DB.
