@@ -32,7 +32,7 @@ func (s *TODOService) CreateTODO(ctx context.Context, subject, description strin
 		log.Fatal(err)
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(subject, description)
+	result, err := stmt.Exec(ctx, subject, description)
 	if err != nil {
 		log.Println("Error inserting TODO: ", err)
 		return nil, err
@@ -44,7 +44,7 @@ func (s *TODOService) CreateTODO(ctx context.Context, subject, description strin
     }
     todo := &model.TODO{}
     res := s.db.QueryRowContext(ctx, confirm, id);
-	todo.ID = int(id)
+	todo.ID = id
     if err := res.Scan(&todo.Subject, &todo.Description, &todo.CreatedAt, &todo.UpdatedAt ); err != nil {
         log.Println("Error scanning query result: ", err)
         return nil, err
@@ -67,8 +67,25 @@ func (s *TODOService) UpdateTODO(ctx context.Context, id int64, subject, descrip
 		update  = `UPDATE todos SET subject = ?, description = ? WHERE id = ?`
 		confirm = `SELECT subject, description, created_at, updated_at FROM todos WHERE id = ?`
 	)
+	stmt, err := s.db.PrepareContext(ctx,update)
 
-	return nil, nil
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	_, err = stmt.ExecContext(ctx, subject, description, id)
+	if err != nil {
+		log.Println("Error updating TODO: ", err)
+		return nil, err
+	}
+	res := s.db.QueryRowContext(ctx, confirm, id)
+
+	todo := &model.TODO{}
+	todo.ID = id
+	if err := res.Scan(&todo.Subject, &todo.Description, &todo.CreatedAt, &todo.UpdatedAt ); err != nil {
+		return nil, &model.ErrNotFound{Message: err.Error()}
+	}
+	return todo, nil
 }
 
 // DeleteTODO deletes TODOs on DB by ids.

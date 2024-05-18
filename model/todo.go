@@ -1,12 +1,14 @@
 package model
+
+import "time"
 type (
 	// A TODO expresses ...
 	TODO struct{
-		ID int `json:"id"`
+		ID int64 `json:"id"`
 		Subject string `json:"subject"`
 		Description string `json:"description"`
-		CreatedAt string `json:"created_at"`
-		UpdatedAt string `json:"updated_at"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
 	}
 
 	// A CreateTODORequest expresses ...
@@ -25,9 +27,15 @@ type (
 	ReadTODOResponse struct{}
 
 	// A UpdateTODORequest expresses ...
-	UpdateTODORequest struct{}
+	UpdateTODORequest struct{
+		ID int64 `json:"id"`
+		Subject string `json:"subject"`
+		Description string `json:"description"`
+	}
 	// A UpdateTODOResponse expresses ...
-	UpdateTODOResponse struct{}
+	UpdateTODOResponse struct{
+		TODO *TODO `json:"todo"`
+	}
 
 	// A DeleteTODORequest expresses ...
 	DeleteTODORequest struct{}

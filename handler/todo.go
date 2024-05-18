@@ -41,8 +41,12 @@ func (h *TODOHandler) Read(ctx context.Context, req *model.ReadTODORequest) (*mo
 
 // Update handles the endpoint that updates the TODO.
 func (h *TODOHandler) Update(ctx context.Context, req *model.UpdateTODORequest) (*model.UpdateTODOResponse, error) {
-	_, _ = h.svc.UpdateTODO(ctx, 0, "", "")
-	return &model.UpdateTODOResponse{}, nil
+	res, err := h.svc.UpdateTODO(ctx, req.ID, req.Subject, req.Description)
+	if err != nil {
+		log.Println("Error updating TODO: ", err)
+		return nil, err
+	}
+	return &model.UpdateTODOResponse{TODO: res}, nil
 }
 
 // Delete handles the endpoint that deletes the TODOs.
@@ -53,33 +57,66 @@ func (h *TODOHandler) Delete(ctx context.Context, req *model.DeleteTODORequest) 
 
 // ServeHTTP implements http.Handler interface.
 func (h *TODOHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost{
-		log.Println("Invalid method")
-		http.Error(w, "error", http.StatusBadRequest)
-		return
-	}
-	req := &model.CreateTODORequest{}
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		log.Println("Error decoding request: ", err)
-		http.Error(w, "error", http.StatusBadRequest)
-		return
-	}
+	switch r.Method {
+	case http.MethodPost:
+		{req := &model.CreateTODORequest{}
+		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+			log.Println("Error decoding request: ", err)
+			http.Error(w, "error", http.StatusBadRequest)
+			return
+			}
+	
+		if req.Subject == "" {
+			log.Println("Invalid subject")
+			http.Error(w, "error", http.StatusBadRequest)
+			return
+			}
+		res, err := h.Create(r.Context(), req)
+		if err != nil {
+			log.Println("Error creating TODO: ", err)
+			http.Error(w, "error", http.StatusBadRequest)
+			return
+			}
+		
+		jsonRes, err := json.Marshal(res)
+		w.Write(jsonRes)
+		if err != nil {
+			log.Println("Error encoding TODO for logging: ", err)
+			}
+		}
+	case http.MethodPut:
+		{
+			req := &model.UpdateTODORequest{}
+			if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+				log.Println("Error decoding request: ", err)
+				http.Error(w, "error", http.StatusBadRequest)
+				return
+			}
+			if req.Subject == ""  || req.ID == 0{
+				log.Println("Invalid subject or ID")
+				http.Error(w, "error", http.StatusBadRequest)
+				return
+			}
+			res, err := h.Update(r.Context(), req)
+			if err != nil {
+				log.Println("Error updating TODO: ", err)
+				http.Error(w, "error", http.StatusNotFound)
+				return
+			}
+			jsonRes, err := json.Marshal(res)
+			w.Write(jsonRes)
+			if err != nil {
+				log.Println("Error encoding TODO for logging: ", err)
+			}
+		}
 
-	if req.Subject == "" {
-		log.Println("Invalid subject")
-		http.Error(w, "error", http.StatusBadRequest)
-		return
-	}
-	res, err := h.Create(r.Context(), req)
-	if err != nil {
-		log.Println("Error creating TODO: ", err)
-		http.Error(w, "error", http.StatusBadRequest)
-		return
+	default:
+		{
+			log.Println("Invalid method")
+			http.Error(w, "error", http.StatusBadRequest)
+			return
+		}
+
 	}
 	
-	jsonRes, err := json.Marshal(res)
-	w.Write(jsonRes)
-	if err != nil {
-		log.Println("Error encoding TODO for logging: ", err)
-	}
 }
