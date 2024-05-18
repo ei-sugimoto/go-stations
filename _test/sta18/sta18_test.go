@@ -92,7 +92,6 @@ func TestStation18(t *testing.T) {
 			t.Parallel()
 
 			err := service.NewTODOService(todoDB).DeleteTODO(context.Background(), tc.IDs)
-
 			switch tc.WantError {
 			case nil:
 				if err != nil {
